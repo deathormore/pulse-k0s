@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pulse-grafana-dashboard
+  namespace: monitoring
+  labels: { grafana_dashboard: "1" }
+data:
+  pulse.json: |-
+    {
+      "annotations":{"list":[]},"editable":true,"graphTooltip":1,
+      "panels":[
+        {"type":"stat","title":"Targets UP","gridPos":{"h":5,"w":6,"x":0,"y":0},"targets":[{"expr":"sum(pulse_target_up)","legendFormat":"UP"}],"fieldConfig":{"defaults":{"color":{"mode":"thresholds"},"thresholds":{"mode":"absolute","steps":[{"color":"red","value":null},{"color":"green","value":1}]}},"overrides":[]}},
+        {"type":"stat","title":"Open incidents","gridPos":{"h":5,"w":6,"x":6,"y":0},"targets":[{"expr":"sum(max by(severity)(pulse_open_incidents_total))","legendFormat":"incidents"}]},
+        {"type":"stat","title":"API requests/sec","gridPos":{"h":5,"w":6,"x":12,"y":0},"targets":[{"expr":"sum(rate(pulse_http_requests_total[5m]))","legendFormat":"RPS"}],"fieldConfig":{"defaults":{"unit":"reqps"},"overrides":[]}},
+        {"type":"stat","title":"API p95 latency","gridPos":{"h":5,"w":6,"x":18,"y":0},"targets":[{"expr":"histogram_quantile(0.95,sum by(le)(rate(pulse_http_request_duration_seconds_bucket[5m])))","legendFormat":"p95"}],"fieldConfig":{"defaults":{"unit":"s"},"overrides":[]}},
+        {"type":"timeseries","title":"Target latency","gridPos":{"h":8,"w":12,"x":0,"y":5},"targets":[{"expr":"pulse_target_latency_seconds","legendFormat":"{{service_name}}"}],"fieldConfig":{"defaults":{"unit":"s"},"overrides":[]}},
+        {"type":"timeseries","title":"Successful vs failed checks","gridPos":{"h":8,"w":12,"x":12,"y":5},"targets":[{"expr":"sum by(result)(rate(pulse_checks_total[5m]))","legendFormat":"{{result}}"}],"fieldConfig":{"defaults":{"unit":"ops"},"overrides":[]}},
+        {"type":"state-timeline","title":"Service availability","gridPos":{"h":8,"w":24,"x":0,"y":13},"targets":[{"expr":"pulse_target_up","legendFormat":"{{service_name}}"}],"fieldConfig":{"defaults":{"mappings":[{"type":"value","options":{"0":{"text":"DOWN","color":"red"},"1":{"text":"UP","color":"green"}}}]},"overrides":[]}},
+        {"type":"timeseries","title":"HTTP responses by status","gridPos":{"h":8,"w":24,"x":0,"y":21},"targets":[{"expr":"sum by(status_code)(rate(pulse_http_requests_total[5m]))","legendFormat":"HTTP {{status_code}}"}],"fieldConfig":{"defaults":{"unit":"reqps"},"overrides":[]}}
+      ],
+      "refresh":"10s","schemaVersion":39,"tags":["pulse","k0s","synthetic-monitoring"],"templating":{"list":[]},"time":{"from":"now-1h","to":"now"},"timezone":"browser","title":"Pulse — Platform Overview","uid":"pulse-overview","version":1
+    }

@@ -1,0 +1,23 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pulse-api
+  namespace: pulse
+  labels: { release: monitoring }
+spec:
+  selector:
+    matchLabels: { app: pulse-api }
+  endpoints:
+    - { port: http, path: /metrics, interval: 15s }
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pulse-worker
+  namespace: pulse
+  labels: { release: monitoring }
+spec:
+  selector:
+    matchLabels: { app: pulse-worker }
+  endpoints:
+    - { port: metrics, path: /metrics, interval: 15s }

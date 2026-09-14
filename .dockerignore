@@ -1,0 +1,10 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+k8s
+scripts
+docs
+README.md
+INTERVIEW-CHEATSHEET.md
+LICENSE
