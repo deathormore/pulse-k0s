@@ -137,8 +137,8 @@ Yandex Object Storage является внешним хранилищем. Он
 
 | Требование | Реализация | Подтверждение |
 |---|---|---|
-| Мониторить «квази-кластер» | kube-state-metrics, node-exporter, Prometheus, Grafana | разделы 1, 2, 5 и 6 |
-| Как минимум получить state Kubernetes | Node, pod phases, Deployment replicas, StatefulSet, PVC | разделы 1, 2 и 6 |
+| Мониторить кластер | kube-state-metrics, node-exporter, Prometheus, Grafana | разделы 1, 2, 5 и 6 |
+| Получить state Kubernetes | Node, pod phases, Deployment replicas, StatefulSet, PVC | разделы 1, 2 и 6 |
 | Делать backup регулярно | Kubernetes CronJob каждый день в 03:00 | разделы 3 и 7 |
 | Сохранять backup внешне | Yandex Object Storage через S3 API | разделы 4, 8 и 10 |
 | Хранилище не участвует в runtime | S3 используется только отдельными CronJob | архитектура и разделы 7–10 |
