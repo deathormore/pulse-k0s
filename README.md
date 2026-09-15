@@ -170,6 +170,8 @@ chmod +x scripts/*.sh
 
 Полная схема, команды развёртывания и проверки вынесены в [docs/CLUSTER-MONITORING-AND-BACKUPS.md](docs/CLUSTER-MONITORING-AND-BACKUPS.md).
 
+Аннотированные скриншоты и соответствие каждого результата исходным требованиям собраны в [docs/IMPLEMENTATION-EVIDENCE.md](docs/IMPLEMENTATION-EVIDENCE.md).
+
 ## Проверка отказоустойчивости
 
 Тестовый сервис разворачивается командой:
