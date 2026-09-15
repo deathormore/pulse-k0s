@@ -10,7 +10,7 @@
 
 ## Задача
 
-Развернуть Kubernetes на локальном сервере, задеплоить полезное приложение с базой данных и веб-интерфейсом, настроить сбор метрик и создать Grafana dashboard.
+Развернуть Kubernetes на локальном сервере, задеплоить полезное приложение с базой данных и веб-интерфейсом, настроить сбор метрик и создать Grafana dashboard. Дополнительно реализованы мониторинг состояния самого k0s-кластера и регулярные внешние бэкапы PostgreSQL.
 
 Для решения разработан **Pulse** — упрощённый аналог Uptime Kuma и Statuspage. Он проверяет доступность HTTP/HTTPS-сервисов, сохраняет историю и помогает вести операционные события.
 
@@ -23,7 +23,9 @@
 - журнал деплоев и плановых работ;
 - публичная Status Page;
 - Prometheus-метрики приложения и worker;
-- готовый Grafana dashboard.
+- dashboard приложения и отдельный dashboard состояния кластера;
+- ежедневные PostgreSQL-бэкапы в Yandex Object Storage;
+- отображение фактического количества S3-бэкапов в Grafana.
 
 ## Архитектура
 
@@ -42,10 +44,19 @@ flowchart LR
     Prometheus -->|scrape /metrics| API1
     Prometheus -->|scrape /metrics| API2
     Prometheus -->|scrape /metrics| Worker
+    KSM[kube-state-metrics] --> Prometheus
+    NodeExporter[node-exporter] --> Prometheus
     Grafana -->|PromQL| Prometheus
+    Backup[CronJob: pg_dump] --> PostgreSQL
+    Backup -->|S3 API| ObjectStorage[(Yandex Object Storage)]
+    S3Checker[S3 checker CronJob] -->|ListObjects| ObjectStorage
+    S3Checker --> Pushgateway
+    Pushgateway --> Prometheus
 ```
 
 Один container image используется в двух ролях: `ROLE=api` и `ROLE=worker`. API масштабируется независимо от фоновых проверок.
+
+Бэкапы хранятся вне VM и не участвуют в runtime Pulse: недоступность Object Storage не останавливает API, worker или PostgreSQL.
 
 ## Технологический стек
 
@@ -57,8 +68,10 @@ flowchart LR
 | Podman | 4.9.3, сборка OCI image |
 | Helm | 3.22.0 |
 | kube-prometheus-stack | chart 91.4.0 |
+| Pushgateway | приём метрики количества объектов в S3 |
 | Node.js | 22 Alpine, API и worker |
 | PostgreSQL | 17 Alpine, основная БД |
+| Yandex Object Storage | внешнее хранение бэкапов, retention 14 дней |
 
 ## Скриншоты
 
@@ -110,13 +123,17 @@ flowchart LR
 ├── public/                      # Web UI и публичная Status Page
 ├── k8s/
 │   ├── base/                    # Namespace, PostgreSQL, API и worker
+│   ├── backup/                  # CronJob бэкапа и S3-checker
 │   ├── demo/                    # Тестовый Nginx для outage-сценария
-│   └── monitoring/              # Helm values, ServiceMonitor и dashboard
+│   └── monitoring/              # Helm values, ServiceMonitor и dashboards
+├── backup/                      # Скрипт pg_dump и загрузки в S3
 ├── scripts/                     # Автоматизированный вариант установки
 ├── docs/
 │   ├── images/                  # Скриншоты результата
-│   └── REPORT.md                # Подробный отчёт о выполнении
+│   ├── REPORT.md                # Подробный отчёт о выполнении
+│   └── CLUSTER-MONITORING-AND-BACKUPS.md
 ├── Dockerfile
+├── Dockerfile.backup
 └── package.json
 ```
 
@@ -138,6 +155,20 @@ chmod +x scripts/*.sh
 - demo credentials Grafana: `admin / admin`.
 
 Подробная ручная установка с пояснением команд находится в [docs/REPORT.md](docs/REPORT.md).
+
+## Расширенный мониторинг и внешние бэкапы
+
+Отдельная часть проекта закрывает две эксплуатационные задачи:
+
+- Grafana получает состояние Kubernetes из `kube-state-metrics` и ресурсы VM из `node-exporter`;
+- ежедневный CronJob создаёт `pg_dump`, загружает его в Yandex Object Storage и проверяет наличие объекта;
+- отдельный S3-checker раз в пять минут считает реальные файлы в бакете;
+- метрика `pulse_s3_backup_objects` проходит через Pushgateway в Prometheus и отображается в Grafana;
+- lifecycle-правило удаляет объекты старше 14 дней.
+
+Готовый dashboard импортируется из [k8s/monitoring/cluster-dashboard.json](k8s/monitoring/cluster-dashboard.json).
+
+Полная схема, команды развёртывания и проверки вынесены в [docs/CLUSTER-MONITORING-AND-BACKUPS.md](docs/CLUSTER-MONITORING-AND-BACKUPS.md).
 
 ## Проверка отказоустойчивости
 

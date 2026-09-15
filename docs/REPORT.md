@@ -233,6 +233,22 @@ sudo k0s kubectl exec -n pulse postgres-0 -- \
 
 ![Таблицы PostgreSQL](images/postgres-tables.png)
 
-## 8. Результат
+## 8. Мониторинг кластера
 
-Цель работы достигнута: на локальной Ubuntu VM развёрнут k0s, создано и контейнеризировано приложение с PostgreSQL и интерактивным интерфейсом, настроены Prometheus и Grafana, проведены тесты отказа, self-healing и сохранности данных.
+В дополнение к метрикам Pulse создан отдельный dashboard состояния k0s. Он использует данные `kube-state-metrics` и `node-exporter` и показывает готовность ноды и pod, реплики Deployment, состояние PostgreSQL и PVC, рестарты контейнеров, CPU, RAM и диск.
+
+Готовый JSON для импорта хранится в `k8s/monitoring/cluster-dashboard.json`.
+
+## 9. Внешние бэкапы
+
+PostgreSQL копируется ежедневным Kubernetes CronJob в Yandex Object Storage. Backup Job создаёт custom-format dump, загружает объект через S3 API и проверяет его командой `head-object`.
+
+Хранилище не смонтировано в приложение и не участвует в runtime Pulse. Для префикса `postgres/` настроено удаление объектов старше 14 дней.
+
+Отдельный S3-checker каждые пять минут считает фактические объекты в бакете и отправляет метрику `pulse_s3_backup_objects` в Pushgateway. Prometheus собирает её, а Grafana отображает количество сохранённых бэкапов.
+
+Подробная реализация и команды проверки: [CLUSTER-MONITORING-AND-BACKUPS.md](CLUSTER-MONITORING-AND-BACKUPS.md).
+
+## 10. Результат
+
+Цель работы достигнута: на локальной Ubuntu VM развёрнут k0s, создано и контейнеризировано приложение с PostgreSQL и интерактивным интерфейсом, настроены Prometheus и Grafana, проведены тесты отказа, self-healing и сохранности данных. Дополнительно реализованы мониторинг Kubernetes-кластера, регулярные внешние бэкапы и контроль фактического количества backup-файлов в Object Storage.

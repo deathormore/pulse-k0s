@@ -1,0 +1,11 @@
+FROM docker.io/library/postgres:17-alpine
+
+RUN apk add --no-cache aws-cli curl
+
+COPY backup/backup.sh /usr/local/bin/pulse-backup
+
+RUN chmod +x /usr/local/bin/pulse-backup
+
+USER postgres
+
+ENTRYPOINT ["/usr/local/bin/pulse-backup"]

@@ -1,0 +1,63 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pulse-s3-backup-metrics
+  namespace: pulse
+spec:
+  schedule: "*/5 * * * *"
+  timeZone: "Europe/Moscow"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: s3-checker
+              image: localhost/pulse-backup:1.1.0
+              imagePullPolicy: Never
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  set -eu
+
+                  count="$(
+                    aws \
+                      --endpoint-url="$S3_ENDPOINT" \
+                      s3api list-objects-v2 \
+                      --bucket="$S3_BUCKET" \
+                      --prefix="postgres/" \
+                      --query 'length(Contents || `[]`)' \
+                      --output text
+                  )"
+
+                  echo "Backups found in S3: ${count}"
+
+                  printf '%s\n' \
+                    '# HELP pulse_s3_backup_objects Number of PostgreSQL backup files stored in Yandex Object Storage.' \
+                    '# TYPE pulse_s3_backup_objects gauge' \
+                    "pulse_s3_backup_objects ${count}" \
+                    > /tmp/metrics
+
+                  curl \
+                    --fail \
+                    --silent \
+                    --show-error \
+                    --data-binary @/tmp/metrics \
+                    http://pushgateway-prometheus-pushgateway.monitoring.svc.cluster.local:9091/metrics/job/pulse-s3-backup-checker
+
+                  echo "Metric sent successfully"
+              envFrom:
+                - secretRef:
+                    name: pulse-backup-s3
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 32Mi
+                limits:
+                  cpu: 200m
+                  memory: 256Mi

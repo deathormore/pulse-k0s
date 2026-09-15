@@ -1,0 +1,51 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: pulse-postgres-backup
+  namespace: pulse
+spec:
+  schedule: "0 3 * * *"
+  timeZone: "Europe/Moscow"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: postgres-backup
+              image: localhost/pulse-backup:1.1.0
+              imagePullPolicy: Never
+              env:
+                - name: DB_HOST
+                  value: postgres
+                - name: DB_PORT
+                  value: "5432"
+                - name: DB_USER
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: username
+                - name: DB_PASSWORD
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: password
+                - name: DB_NAME
+                  valueFrom:
+                    secretKeyRef:
+                      name: postgres-credentials
+                      key: database
+              envFrom:
+                - secretRef:
+                    name: pulse-backup-s3
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
